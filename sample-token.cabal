@@ -14,7 +14,9 @@ library
                        PAB
                        Token.OffChain
                        Token.OnChain
+                       Token.MintToken
                        Trace
+                       Test.Trace
                        Utils
   build-depends:       aeson
                      , base ^>=4.14.1.0

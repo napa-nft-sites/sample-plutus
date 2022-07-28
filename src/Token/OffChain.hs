@@ -97,3 +97,33 @@ mintToken tp = do
             void $ adjustAndSubmitWith @Void lookups constraints
             Contract.logInfo @String $ printf "minted %s" (show val)
             return cs
+
+transfer :: TokenParams -> PubKeyHash -> Contract w s Text CurrencySymbol
+transfer tp pkh = do
+    Contract.logDebug @String $ printf "started transfer : %s" $ show tp
+    -- caller <- pubKeyHash <$> Contract.ownPubKey
+    caller <- Contract.ownPaymentPubKeyHash
+    let addr = tpAddress tp
+    case getCredentials addr of
+        Nothing      -> Contract.throwError $ pack $ printf "expected pubkey address, but got %s" $ show addr
+        Just (x, my) -> do
+            oref <- getUnspentOutput
+            o    <- fromJust <$> Contract.txOutFromRef oref
+            Contract.logDebug @String $ printf "picked UTxO at %s with value %s" (show oref) (show $ _ciTxOutValue o)
+
+            let tn          = tpToken tp
+                amt         = tpAmount tp
+                cs          = tokenCurSymbol oref tn amt
+                val         = Value.singleton cs tn amt
+                c           = case my of
+                    Nothing -> Constraints.mustPayToPubKey x val
+                    Just y  -> Constraints.mustPayToPubKeyAddress x y val
+                lookups     = Constraints.mintingPolicy (tokenPolicy oref tn (-amt)) <>
+                              Constraints.unspentOutputs (Map.singleton oref o)
+                constraints = Constraints.mustMintValue val          <>
+                              Constraints.mustSpendPubKeyOutput oref <>
+                              c
+
+            void $ adjustAndSubmitWith @Void lookups constraints
+            Contract.logInfo @String $ printf "minted %s" (show val)
+            return cs
