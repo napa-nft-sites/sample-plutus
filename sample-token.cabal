@@ -12,9 +12,9 @@ library
   hs-source-dirs:      src
   exposed-modules:     Monitor
                        PAB
-                       Token.OffChain
+                       Token.OffChain2
                        Token.OnChain
-                       Token.MintToken
+                      --  Token.MintToken
                        Trace
                        Test.Trace
                        Utils

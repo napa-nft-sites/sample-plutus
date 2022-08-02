@@ -8,10 +8,12 @@
 {-# LANGUAGE TypeApplications    #-}
 {-# LANGUAGE TypeFamilies        #-}
 
-module Token.OffChain
+module Token.OffChain2
     ( TokenParams (..)
     , adjustAndSubmit, adjustAndSubmitWith
     , mintToken
+    -- , burnToken
+    -- , transferToken
     ) where
 
 import           Control.Monad               hiding (fmap)
@@ -26,16 +28,18 @@ import           Plutus.Contract             as Contract
 import           Plutus.Contract.Wallet      (getUnspentOutput)
 import qualified PlutusTx
 import           PlutusTx.Prelude            hiding (Semigroup(..), unless)
+import qualified PlutusTx.Builtins           as Builtins
 import           Ledger                      hiding (mint, singleton)
 import           Ledger.Constraints          as Constraints
 import qualified Ledger.Typed.Scripts        as Scripts
 import           Ledger.Value                as Value
+import           Ledger.Ada                  as Ada
 import           Prelude                     (Semigroup (..), Show (..), String)
-import qualified Prelude
+import qualified Prelude                     
 import           Text.Printf                 (printf)
 
 import           Token.OnChain
-import           Utils                (getCredentials)
+import           Utils                       (getCredentials)
 
 data TokenParams = TokenParams
     { tpToken   :: !TokenName
@@ -76,7 +80,7 @@ mintToken tp = do
     let addr = tpAddress tp
     case getCredentials addr of
         Nothing      -> Contract.throwError $ pack $ printf "expected pubkey address, but got %s" $ show addr
-        Just (x, my) -> do
+        Just (ppkh, my) -> do
             oref <- getUnspentOutput   -- Look for an unspent output in the wallet that basically running this contract (TxId#TxIdx)
             o    <- fromJust <$> Contract.txOutFromRef oref
             Contract.logDebug @String $ printf "picked UTxO at %s with value %s" (show oref) (show $ _ciTxOutValue o)
@@ -86,8 +90,8 @@ mintToken tp = do
                 cs          = tokenCurSymbol oref tn amt
                 val         = Value.singleton cs tn amt
                 c           = case my of
-                    Nothing -> Constraints.mustPayToPubKey x val
-                    Just y  -> Constraints.mustPayToPubKeyAddress x y val
+                    Nothing -> Constraints.mustPayToPubKey ppkh val
+                    Just y  -> Constraints.mustPayToPubKeyAddress ppkh y val
                 lookups     = Constraints.mintingPolicy (tokenPolicy oref tn amt) <>
                               Constraints.unspentOutputs (Map.singleton oref o)
                 constraints = Constraints.mustMintValue val          <>
@@ -97,3 +101,43 @@ mintToken tp = do
             void $ adjustAndSubmitWith @Void lookups constraints
             Contract.logInfo @String $ printf "minted %s" (show val)
             return cs
+
+-- burnToken :: TokenParams -> Contract w s Text CurrencySymbol
+-- burnToken tp = do
+--     oref <- getUnspentOutput  
+--     let tn          = tpToken tp
+--         amt         = tpAmount tp
+--         cs          = tokenCurSymbol oref tn amt
+--         val         = Value.singleton cs tn amt
+--         tx          = Constraints.mustPayToTheScript 0 val
+--     ledgerTx <- submitTxConstraints burnValidator tx
+--     void $ awaitTxConfirmed $ getCardanoTxId ledgerTx
+--     Contract.logInfo @String $ printf "burned %d" (show val)
+--     return cs
+
+    
+-- transferToken :: TokenParams -> Contract w s Text CurrencySymbol
+-- transferToken tp = do
+--     let addr = tpAddress tp
+--     Contract.logDebug @String $ printf "started transfer to: %s" $ show addr
+--     case getCredentials addr of
+--         Nothing      -> Contract.throwError $ pack $ printf "expected pubkey address, but got %s" $ show addr
+--         Just (x, my) -> do
+--             oref <- getUnspentOutput   -- Look for an unspent output in the wallet that basically running this contract (TxId#TxIdx)
+--             o    <- fromJust <$> Contract.txOutFromRef oref
+--             Contract.logDebug @String $ printf "picked UTxO at %s with value %s" (show oref) (show $ _ciTxOutValue o)
+
+--             let tn          = tpToken tp
+--                 amt         = tpAmount tp
+--                 cs          = tokenCurSymbol oref tn amt
+--                 val         = Value.singleton cs tn (-amt)
+--                 c           = case my of
+--                     Nothing -> Constraints.mustPayToPubKey x val
+--                     Just y  -> Constraints.mustPayToPubKeyAddress x y val
+--                 lookups     = Constraints.unspentOutputs (Map.singleton oref o)
+--                 constraints = Constraints.mustSpendPubKeyOutput oref <>
+--                               c
+
+--             void $ adjustAndSubmitWith @Void lookups constraints
+--             Contract.logInfo @String $ printf "transfered %s" (show val)
+--             return cs            

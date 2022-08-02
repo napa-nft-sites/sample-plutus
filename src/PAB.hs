@@ -17,7 +17,7 @@ import           Prettyprinter                       (Pretty (..), viaShow)
 import           Wallet.Emulator.Wallet              (knownWallet, mockWalletAddress)
 
 import qualified Monitor                      as Monitor
-import qualified Token.OffChain               as Token
+import qualified Token.OffChain2              as Token
 
 data TokenContracts = Mint Token.TokenParams | Monitor Address
     deriving (Eq, Ord, Show, Generic, FromJSON, ToJSON, ToSchema)

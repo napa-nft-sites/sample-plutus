@@ -97,6 +97,9 @@ contractActivationArgs wid a = ContractActivationArgs
     , caWallet = Just $ Wallet {getWalletId = wid}
     }
 
+-- Try to extract the public key hashes contained in address.
+-- Result is Nothing if it's a script address 
+-- If it's a pub key address, then it will be a just with the corresponding payment pub key hash and optionally a staking pub key hash
 getCredentials :: Plutus.Address -> Maybe (Plutus.PaymentPubKeyHash, Maybe Plutus.StakePubKeyHash)
 getCredentials (Plutus.Address x y) = case x of
     ScriptCredential _   -> Nothing

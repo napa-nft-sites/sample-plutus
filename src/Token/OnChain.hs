@@ -14,6 +14,8 @@
 module Token.OnChain
     ( tokenPolicy
     , tokenCurSymbol
+    , burnValidator
+    , burnValHash
     ) where
 
 import qualified PlutusTx
@@ -21,11 +23,12 @@ import           PlutusTx.Prelude            hiding (Semigroup(..), unless)
 import           Ledger                      hiding (mint, singleton)
 import qualified Ledger.Typed.Scripts        as Scripts
 import           Ledger.Value                as Value
+import           Ledger.Scripts
 
 {-# INLINABLE mkTokenPolicy #-}
 mkTokenPolicy :: TxOutRef -> TokenName -> Integer -> () -> ScriptContext -> Bool
-mkTokenPolicy oref tn amt () ctx = traceIfFalse "UTxO not consumed"   hasUTxO           &&
-                                   traceIfFalse "wrong amount minted" checkMintedAmount
+mkTokenPolicy oref tn amt () ctx =  traceIfFalse "UTxO not consumed"   hasUTxO           &&
+                                    traceIfFalse "wrong amount minted" checkMintedAmount
   where
     info :: TxInfo
     info = scriptContextTxInfo ctx
@@ -50,3 +53,17 @@ tokenPolicy oref tn amt = mkMintingPolicyScript $
 
 tokenCurSymbol :: TxOutRef -> TokenName -> Integer -> CurrencySymbol
 tokenCurSymbol oref tn = scriptCurrencySymbol . tokenPolicy oref tn
+
+{-# INLINABLE mkBurnValidator #-}
+mkBurnValidator :: BuiltinData -> BuiltinData -> BuiltinData -> ()
+mkBurnValidator _ _ _ = traceError "BURNT!"
+
+burnValidator :: Validator
+burnValidator = mkValidatorScript
+    $$(PlutusTx.compile [|| mkBurnValidator ||])
+
+burnValHash :: Ledger.ValidatorHash
+burnValHash = Ledger.Scripts.validatorHash burnValidator
+
+scrAddress :: Ledger.Address
+scrAddress = scriptAddress burnValidator
